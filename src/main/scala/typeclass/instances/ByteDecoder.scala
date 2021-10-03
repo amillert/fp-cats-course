@@ -1,12 +1,11 @@
-package typeclasses
+package typeclass
+package instances
 
 import scala.util.Try
 
-trait ByteDecoder[A] {
-  def decode(bytes: Array[Byte]): Option[A]
-}
+private[typeclass] object ByteDecoder {
+  import abstracts.ByteDecoder
 
-object ByteDecoder {
   def apply[A](implicit ev: ByteDecoder[A]): ByteDecoder[A]    = ev
   def instance[A](f: Array[Byte] => Option[A]): ByteDecoder[A] = f(_)
 
