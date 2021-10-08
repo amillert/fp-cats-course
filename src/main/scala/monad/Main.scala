@@ -2,19 +2,9 @@ package monad
 
 import cats._
 import cats.implicits._
+import scala.util.{ Failure, Success, Try }
 
-sealed trait MOption[+A] {
-
-  // def flatMap[A, B](f: A => MOption[B]): MOption[B] = {
-  //   import MOption._
-
-  //   this match {
-
-  //     case MSome(a: A) => f(a)
-  //     case MNone       => MNone
-  //   }
-  // }
-}
+sealed trait MOption[+A]
 object MOption {
   case class MSome[+A](a: A) extends MOption[A]
   case object MNone          extends MOption[Nothing]
@@ -70,6 +60,34 @@ object MOption {
 
   }
 
+  implicit def monadEither[E]: Monad[Either[E, *]] = new Monad[Either[E, *]] {
+
+    override def flatMap[A, B](fa: Either[E, A])(f: A => Either[E, B]): Either[E, B] =
+      fa match {
+        case Left(value)  => Left(value)
+        case Right(value) => f(value)
+      }
+
+    override def tailRecM[A, B](a: A)(f: A => Either[E, Either[A, B]]): Either[E, B] = ???
+
+    override def pure[A](x: A): Either[E, A] = Right(x)
+
+  }
+
+  implicit val monadTry: Monad[Try] = new Monad[Try] {
+
+    override def flatMap[A, B](fa: Try[A])(f: A => Try[B]): Try[B] =
+      fa match {
+        case Failure(exception) => Failure(exception)
+        case Success(value)     => f(value)
+      }
+
+    override def tailRecM[A, B](a: A)(f: A => Try[Either[A, B]]): Try[B] = ???
+
+    override def pure[A](x: A): Try[A] = Success(x)
+
+  }
+
 }
 
 case class Person(name: String)
@@ -116,4 +134,25 @@ object Main extends App {
   } yield a + b
 
   monadList.flatMap(List(1, 2, 3))(a => List(a + 1, a + 2))
+
+  val right = 5.asRight.flatMap(x => (x + 1).asRight[String])
+
+  val trySuccess = monadTry.pure(5).flatMap(i => monadTry.pure(i + 1))
+  val tryFail    = monadTry.pure(5).flatMap(_ => Failure(new Exception("boom")))
+  // fail fast
+  val tryFail2 = monadTry
+    .pure(5)
+    .flatMap(_ =>
+      Failure(new Exception("boom"))
+        .flatMap(_ => Failure(new Exception("boom 2")))
+    )
+
+  // Scala's [[Try]]
+
+  val fail = Success(5).flatMap(_ => throw new Exception("boom"))
+  // pure(x).flatMap(f) === f(x)
+  // but if the function throws exception
+  // and it's called as f(x), then the exception will be thrown
+  // but through flatMap, it would wrap error message in [[Failure]] instead
+  // breaking the monad law
 }
