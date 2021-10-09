@@ -2,7 +2,6 @@ package functor
 
 import cats._
 import cats.implicits._
-import cats.syntax.all._
 
 case class Secret[A](value: A) {
   private def hashed: String    = value.hashCode.toString
